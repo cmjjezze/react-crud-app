@@ -1,94 +1,112 @@
 Option Explicit
 
+'Declare constant variables
+Const conColID As Integer = 1 'Column number equivalent of ID column on Raw sheet
+Const conColItem As Integer = 12 'Column number equivalent of Item Name column on Raw sheet
+Const conQuantityCol As String = "P" 'Quantity column letter on Raw sheet
+Const conDateCol As String = "R" 'Shipping Planned Date column letter on Raw sheet
+Const conshRaw As String = "Raw" 'Worksheet name of Raw
+Const conshSummary As String = "Summary" 'Worksheet name of Summary/Report
+Const conStartSummary As Integer = 3 'Start row of Summary tab for column headers without date dependency
+Const conStartRaw As Integer = 2 'Start row of Raw tab (column header in not included)
+Const conStartSummaryCol As Integer = 3 'Start column of Summary tab for column headers with date dependency
+
 Sub CreateTable()
 
-Dim wsRaw As Worksheet, wsSummary As Worksheet, rngFilter As Range, lrRaw As Long, lrSummary As Long
+Dim wsRaw As Worksheet, wsSummary As Worksheet
+Dim rngFilter As Range, lrRaw As Long, lrSummary As Long
 Dim strDate As String, arrDate() As String, year As Integer, month As Integer
 Dim colCount As Integer, rowSummary As Integer, monthCount As Integer, rowRaw As Integer
 Dim idSummary As String, idRaw As String, strYear As String
 Dim itemSummary As String, itemRaw As String
 Dim mnthName As String, distinct As String, lcSummary As Long
 
-Set wsRaw = ThisWorkbook.Sheets("Raw") 'Set Raw worksheet on wsRaw variable
-Set wsSummary = ThisWorkbook.Sheets("Summary") 'Set Summary worksheet on wsSummary variable
+'Set worksheets
+Set wsRaw = ThisWorkbook.Sheets(conshRaw)
+Set wsSummary = ThisWorkbook.Sheets(conshSummary)
 
-'Sort ShippingDate (column D)
+'Sort Shipping Planned date to get Year and Month of first date
 wsRaw.Activate
-wsRaw.UsedRange.Sort Key1:=Range("D1"), Order1:=xlAscending, Header:=xlYes
-
-'Get Year & Month of First date
-strDate = wsRaw.Range("D2").Value
+wsRaw.UsedRange.Sort Key1:=Range(conDateCol & "1"), Order1:=xlAscending, Header:=xlYes
+strDate = wsRaw.Range(conDateCol & "2").Value
 arrDate = Split(strDate, "/")
 year = CInt(arrDate(2))
+month = CInt(arrDate(0))
 
-'Create Header
-wsSummary.Range("A3").Value = "ID"
-wsSummary.Range("B3").Value = "Item ID"
-For colCount = 3 To (colCount + 50)
-    If colCount < 27 Then
+'Create Header (add ka na lang ng ibang headers dito bago mag loop)
+wsSummary.Range("A" & conStartSummary).Value = "Forecast Number"
+wsSummary.Range("B" & conStartSummary).Value = "Item name"
+
+For colCount = conStartSummary To (colCount + 50) '50 is para maubo yung 24 months (total of 48 columns kasi bi-monthly)
+    If colCount < 27 Then 'For Year 1 (27-3, alam mo naman sagot)
         wsSummary.Cells(1, colCount).Value = "FY" & year
-    Else
+    Else 'For Year 2
         wsSummary.Cells(1, colCount).Value = "FY" & (year + 1)
     End If
-
 Next colCount
 
-month = 1
-colCount = 3
-For colCount = 3 To (colCount + 46)
-    wsSummary.Cells(2, colCount).Value = monthName(month, True)
-    wsSummary.Cells(2, colCount + 1).Value = monthName(month, True)
+lcSummary = wsSummary.Cells(1, wsSummary.Columns.Count).End(xlToLeft).Column
+For colCount = conStartSummaryCol To lcSummary
+    'Enter Monthname on row 2
+    wsSummary.Cells(2, colCount).Value = MonthName(month, True)
+    wsSummary.Cells(2, colCount + 1).Value = MonthName(month, True)
+    
+    'Enter Half month distinction on row 3
     wsSummary.Cells(3, colCount).Value = "1st Half"
     wsSummary.Cells(3, colCount + 1).Value = "2nd Half"
     colCount = colCount + 1
     month = month + 1
+    
+    'Reset month count if reached 13 (12 months lang po tyo sa isang taon)
     If month = 13 Then
         month = 1
     End If
+    
 Next colCount
 
 lrRaw = wsRaw.Cells(wsRaw.Rows.Count, "D").End(xlUp).Row 'get lastrow of ShippingDate column
 
-wsSummary.Range("A4:B" & (lrRaw + 2)).Value = wsRaw.Range("A2:B" & lrRaw).Value
-wsSummary.Range("A4:B" & (lrRaw + 2)).RemoveDuplicates Columns:=Array(1, 2), Header:=xlNo
+'palitan mo na lang column letters if iba pwesto sa report
+wsSummary.Range("A" & (conStartSummary + 1) & ":A" & (lrRaw + conStartRaw)).Value = wsRaw.Range("A" & conStartRaw & ":A" & lrRaw).Value 'copy ID values to Summary tab
+wsSummary.Range("B" & (conStartSummary + 1) & ":B" & (lrRaw + conStartRaw)).Value = wsRaw.Range("L" & conStartRaw & ":L" & lrRaw).Value 'copy item name values to Summary tab
+wsSummary.Range("A" & (conStartSummary + 1) & ":B" & (lrRaw + conStartRaw)).RemoveDuplicates Columns:=Array(1, 2), Header:=xlNo 'Remove dupllicates for both ID and item name
 
-wsRaw.Range("E2:E" & lrRaw).Value = "=TEXT(MONTH(D2)*28, ""mmm"")"
-wsRaw.Range("F2:F" & lrRaw).Value = "=DAY(D2)"
-wsRaw.Range("G2:G" & lrRaw).Value = "=YEAR(D2)"
+'palitan mo na lang column letters if hindi Z yung dulo sa Raw tab (update mo dn yung column number sa code sa baba, yung may comment na 'updatemoto')
+wsRaw.Range("AA2:AA" & lrRaw).Value = "=TEXT(MONTH(R2)*28, ""mmm"")" 'Get Date Monthname for filter
+wsRaw.Range("AB2:AB" & lrRaw).Value = "=DAY(R2)" 'Get Date Day for filter
+wsRaw.Range("AC2:AC" & lrRaw).Value = "=YEAR(R2)" 'Get Date Year for filter
 
-colCount = 3
 lrSummary = wsSummary.Cells(wsRaw.Rows.Count, "A").End(xlUp).Row
-lcSummary = wsSummary.Cells(1, wsSummary.Columns.Count).End(xlToLeft).Column
-
-For colCount = 3 To lcSummary
+For colCount = conStartSummaryCol To lcSummary
     strYear = wsSummary.Cells(1, colCount)
     strYear = Replace(strYear, "FY", "")
     mnthName = wsSummary.Cells(2, colCount)
     distinct = wsSummary.Cells(3, colCount)
     ThisWorkbook.Application.ScreenUpdating = False
-    For rowSummary = 4 To lrSummary
-        Set rngFilter = wsRaw.Range("A1:G" & lrRaw)
+    For rowSummary = (conStartSummary + 1) To lrSummary
+        Set rngFilter = wsRaw.UsedRange
         idSummary = wsSummary.Range("A" & rowSummary).Value
         itemSummary = wsSummary.Range("B" & rowSummary).Value
         rngFilter.AutoFilter
         rngFilter.AutoFilter
-        rngFilter.AutoFilter Field:=1, Criteria1:=idSummary
-        rngFilter.AutoFilter Field:=2, Criteria1:=itemSummary
-        rngFilter.AutoFilter Field:=5, Criteria1:=mnthName
+        rngFilter.AutoFilter Field:=conColID, Criteria1:=idSummary
+        rngFilter.AutoFilter Field:=conColItem, Criteria1:=itemSummary
+        rngFilter.AutoFilter Field:=27, Criteria1:=mnthName 'updatemoto -27
+        rngFilter.AutoFilter Field:=29, Criteria1:=strYear 'updatemoto - 29
         
         If distinct = "1st Half" Then
-            rngFilter.AutoFilter Field:=6, Criteria1:="<=15"
+            rngFilter.AutoFilter Field:=28, Criteria1:="<=15" 'updatemoto -28
         Else
-            rngFilter.AutoFilter Field:=6, Criteria1:=">15"
+            rngFilter.AutoFilter Field:=28, Criteria1:=">15" 'updatemoto - 28
         End If
         
-        rngFilter.AutoFilter Field:=7, Criteria1:=strYear
-        wsRaw.Range("I1").Value = "=SUBTOTAL(3,A:A)-1"
-        wsSummary.Cells(rowSummary, colCount).Value = wsRaw.Range("I1").Value
+        wsRaw.Range("AD1").Value = "=SUBTOTAL(9," & conQuantityCol & ":" & conQuantityCol & ")" 'updatemoto - AD
+        wsSummary.Cells(rowSummary, colCount).Value = wsRaw.Range("AD1").Value 'updatemoto -AD
         rngFilter.AutoFilter
     Next rowSummary
 Next colCount
 
-wsRaw.Range("E1:I" & lrRaw).ClearContents
+'clear added formulas on Raw sheet
+wsRaw.Range("AA1:AD" & lrRaw).ClearContents 'updatemoto - AA1:AD
 ThisWorkbook.Application.ScreenUpdating = True
 End Sub
