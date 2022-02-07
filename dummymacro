@@ -1,0 +1,94 @@
+Option Explicit
+
+Sub CreateTable()
+
+Dim wsRaw As Worksheet, wsSummary As Worksheet, rngFilter As Range, lrRaw As Long, lrSummary As Long
+Dim strDate As String, arrDate() As String, year As Integer, month As Integer
+Dim colCount As Integer, rowSummary As Integer, monthCount As Integer, rowRaw As Integer
+Dim idSummary As String, idRaw As String, strYear As String
+Dim itemSummary As String, itemRaw As String
+Dim mnthName As String, distinct As String, lcSummary As Long
+
+Set wsRaw = ThisWorkbook.Sheets("Raw") 'Set Raw worksheet on wsRaw variable
+Set wsSummary = ThisWorkbook.Sheets("Summary") 'Set Summary worksheet on wsSummary variable
+
+'Sort ShippingDate (column D)
+wsRaw.Activate
+wsRaw.UsedRange.Sort Key1:=Range("D1"), Order1:=xlAscending, Header:=xlYes
+
+'Get Year & Month of First date
+strDate = wsRaw.Range("D2").Value
+arrDate = Split(strDate, "/")
+year = CInt(arrDate(2))
+
+'Create Header
+wsSummary.Range("A3").Value = "ID"
+wsSummary.Range("B3").Value = "Item ID"
+For colCount = 3 To (colCount + 50)
+    If colCount < 27 Then
+        wsSummary.Cells(1, colCount).Value = "FY" & year
+    Else
+        wsSummary.Cells(1, colCount).Value = "FY" & (year + 1)
+    End If
+
+Next colCount
+
+month = 1
+colCount = 3
+For colCount = 3 To (colCount + 46)
+    wsSummary.Cells(2, colCount).Value = monthName(month, True)
+    wsSummary.Cells(2, colCount + 1).Value = monthName(month, True)
+    wsSummary.Cells(3, colCount).Value = "1st Half"
+    wsSummary.Cells(3, colCount + 1).Value = "2nd Half"
+    colCount = colCount + 1
+    month = month + 1
+    If month = 13 Then
+        month = 1
+    End If
+Next colCount
+
+lrRaw = wsRaw.Cells(wsRaw.Rows.Count, "D").End(xlUp).Row 'get lastrow of ShippingDate column
+
+wsSummary.Range("A4:B" & (lrRaw + 2)).Value = wsRaw.Range("A2:B" & lrRaw).Value
+wsSummary.Range("A4:B" & (lrRaw + 2)).RemoveDuplicates Columns:=Array(1, 2), Header:=xlNo
+
+wsRaw.Range("E2:E" & lrRaw).Value = "=TEXT(MONTH(D2)*28, ""mmm"")"
+wsRaw.Range("F2:F" & lrRaw).Value = "=DAY(D2)"
+wsRaw.Range("G2:G" & lrRaw).Value = "=YEAR(D2)"
+
+colCount = 3
+lrSummary = wsSummary.Cells(wsRaw.Rows.Count, "A").End(xlUp).Row
+lcSummary = wsSummary.Cells(1, wsSummary.Columns.Count).End(xlToLeft).Column
+
+For colCount = 3 To lcSummary
+    strYear = wsSummary.Cells(1, colCount)
+    strYear = Replace(strYear, "FY", "")
+    mnthName = wsSummary.Cells(2, colCount)
+    distinct = wsSummary.Cells(3, colCount)
+    ThisWorkbook.Application.ScreenUpdating = False
+    For rowSummary = 4 To lrSummary
+        Set rngFilter = wsRaw.Range("A1:G" & lrRaw)
+        idSummary = wsSummary.Range("A" & rowSummary).Value
+        itemSummary = wsSummary.Range("B" & rowSummary).Value
+        rngFilter.AutoFilter
+        rngFilter.AutoFilter
+        rngFilter.AutoFilter Field:=1, Criteria1:=idSummary
+        rngFilter.AutoFilter Field:=2, Criteria1:=itemSummary
+        rngFilter.AutoFilter Field:=5, Criteria1:=mnthName
+        
+        If distinct = "1st Half" Then
+            rngFilter.AutoFilter Field:=6, Criteria1:="<=15"
+        Else
+            rngFilter.AutoFilter Field:=6, Criteria1:=">15"
+        End If
+        
+        rngFilter.AutoFilter Field:=7, Criteria1:=strYear
+        wsRaw.Range("I1").Value = "=SUBTOTAL(3,A:A)-1"
+        wsSummary.Cells(rowSummary, colCount).Value = wsRaw.Range("I1").Value
+        rngFilter.AutoFilter
+    Next rowSummary
+Next colCount
+
+wsRaw.Range("E1:I" & lrRaw).ClearContents
+ThisWorkbook.Application.ScreenUpdating = True
+End Sub
