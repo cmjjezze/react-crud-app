@@ -1,0 +1,3 @@
+Forecast number	Client name	CA name	Rank	Contract name	Currency	Forecast revenue	Discount amount	Person In Charge	Comments	Series name	Item name	Band country	Frequency	RU type	Quantity	Onsite Request Date	Shipping Planned Date	Comments	CA Unit Sales	Currency CA	NEC Unit sales	Currency(NEC)	NEC PF unit sales	Currency (NEC PF)
+F111	Client-111-Name	CA-1-Name	A-1	CName1111	USD	0.00	0.00	FiveGSBOperator		S-1111	Item111_B	USA		Conducted	0	2/7/2022	2/17/2022		0.00		0.00		0.00	
+F111	Client-111-Name	CA-1-Name	A-1	CName1111	USD	0.00	0.00	FiveGSBOperator		S-2222	Item2222	USA		Conducted	0	2/17/2022	2/28/2022		0.00		0.00		0.00	
